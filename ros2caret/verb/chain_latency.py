@@ -42,6 +42,10 @@ class ChainLatencyVerb(VerbExtension):
             '-g', '--granularity', dest='granularity', type=str, default=None,
             help='granularity of trace points to be visualized')
 
+        parser.add_argument(
+            '-i', '--time_id', dest='time_id', type=str, default='system_time',
+            help='Specify whether the timestamp source is system time or simulation time(sim_time)')
+
     def main(self, *, args):
         lttng = Lttng(args.trace_directory, force_conversion=True)
         app = Application(args.architecture_path, 'yaml', lttng)
@@ -50,4 +54,4 @@ class ChainLatencyVerb(VerbExtension):
             return 1
         path = app.path[args.path_name]
         chain_latency(path, export_path=args.output_path,
-                      granularity=args.granularity)
+                      granularity=args.granularity, time_id=args.time_id)
