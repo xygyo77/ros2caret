@@ -15,6 +15,7 @@
 import os
 import signal
 import subprocess
+import time
 
 from typing import Optional
 
@@ -141,13 +142,13 @@ class RecordVerb(VerbExtension):
             default=8*4096,
             help='the size of the subbuffers for userspace events(default: 8*4096). '
                  'buffer size must be power of two. '
-                 'available in iron or rolling only. ')
+                 'available in ROS Distributions after iron. ')
         parser.add_argument(
             '--subbuffer-size-kernel', dest='subbuffer_size_kernel', type=int,
             default=32*4096,
             help='the size of the subbuffers for kernel events(default: 32*4096). '
                  'buffer size must be power of two. '
-                 'available in iron or rolling only. ')
+                 'available in ROS Distributions after iron. ')
         parser.add_argument(
             '--immediate', dest='immediate', action='store_true',
             help='record immediately. ')
@@ -173,7 +174,7 @@ class RecordVerb(VerbExtension):
                     'ros2_caret:rcl_*init',
                     'ros2_caret:caret_init',
                     'ros2_caret:sim_time']
-            if os.environ['ROS_DISTRO'] in ['iron' or 'rolling']:
+            if os.environ['ROS_DISTRO'][0] >= 'i':
                 events_ust.append('ros2:rcl_publish')
         else:
             events_ust = ['ros*']
@@ -194,20 +195,21 @@ class RecordVerb(VerbExtension):
         else:
             init_args['context_fields'] = context_names
         init_args['display_list'] = args.list
-        # Note: keyword argument --subbuffer_size_ust/kernel are available in iron or rolling.
+        # Note: keyword argument
+        # --subbuffer_size_ust/kernel are available in ROS Distributions after iron.
 
-        if os.environ['ROS_DISTRO'] not in ['iron', 'rolling'] \
+        if os.environ['ROS_DISTRO'][0] < 'i' \
                 and args.subbuffer_size_ust != 8*4096:
             raise ValueError('the --subbuffer-size-ust option is '
-                             'available in iron or rolling')
+                             'available in ROS Distributions after iron')
         if args.subbuffer_size_ust & (args.subbuffer_size_ust-1):
             raise ValueError('--subbuffer-size-ust value must be power of two.')
         init_args['subbuffer_size_ust'] = args.subbuffer_size_ust
 
-        if os.environ['ROS_DISTRO'] not in ['iron', 'rolling'] \
+        if os.environ['ROS_DISTRO'][0] < 'i' \
                 and args.subbuffer_size_kernel != 32*4096:
             raise ValueError('the --subbuffer-size-kernel option is '
-                             'available in iron or rolling')
+                             'available in ROS Distributions after iron')
         if args.subbuffer_size_kernel & (args.subbuffer_size_kernel-1):
             raise ValueError('--subbuffer-size-kernel value must be power of two.')
         init_args['subbuffer_size_kernel'] = args.subbuffer_size_kernel
@@ -218,7 +220,12 @@ class RecordVerb(VerbExtension):
             recordable_node_num = node.start(args.verbose, args.recording_frequency)
             while not node.started and recordable_node_num > 0:
                 rclpy.spin_once(node)
-            input('press enter to stop...')
+            try:
+                input('press enter to stop...')
+            except EOFError:
+                print('\nstd::input is not supported in this system. press ctrl-c to stop...')
+                while True:
+                    time.sleep(10)
 
         def _fini():
             node.stop_progress()
