@@ -180,7 +180,7 @@ class RecordVerb(VerbExtension):
                     'ros2:message_construct',
                     'ros2:rclcpp_executor_get_next_ready',
                     'ros2_caret:rclcpp_executor_get_next_ready',
-                    'ros2_caret:add_cpu_info']
+                    'ros2_caret:callback_end_ex']
             if os.environ['ROS_DISTRO'][0] >= 'i':
                 events_ust.append('ros2:rcl_publish')
         else:

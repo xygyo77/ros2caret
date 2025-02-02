@@ -103,7 +103,7 @@ class Summary:
         return (datetime.fromtimestamp(
                     cb_df['callback_start_timestamp'].min() * 1.0e-9),
                 datetime.fromtimestamp(
-                    cb_df['callback_end_timestamp'].max() * 1.0e-9))
+                    cb_df['callback_end_ex_timestamp'].max() * 1.0e-9))
 
     @staticmethod
     def _get_filters(
