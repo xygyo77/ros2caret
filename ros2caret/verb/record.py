@@ -59,6 +59,7 @@ class CaretSessionNode(Node):
         self._caret_node_names = set()
         self._progress = None
         self.started = False
+        self._control_file = "/home/akm/.lttng/CONTROL"
 
     def subscription_callback(self, msg):
         if msg.status != Status.RECORD:
@@ -102,11 +103,23 @@ class CaretSessionNode(Node):
         msg = Start()
         msg.recording_frequency = 100 if recording_frequency is None else int(recording_frequency)
         self._start_pub_.publish(msg)
+
+        try:
+            with open(self._control_file, 'w') as f:
+                f.write(str(msg.recording_frequency))
+            #print(f'create file: {self._control_file}')
+        except IOError as e:
+            print(f'file open: {e}')
         return caret_node_num
 
     def end(self):
         msg = End()
         self._end_pub_.publish(msg)
+        if os.path.exists(self._control_file):
+            try:
+                os.remove(self._control_file)
+            except OSError as e:
+                print(f'file remove: {e}')
 
 
 class RecordVerb(VerbExtension):
