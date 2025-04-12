@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+from pathlib import Path
 import signal
 import subprocess
 import time
@@ -59,7 +60,9 @@ class CaretSessionNode(Node):
         self._caret_node_names = set()
         self._progress = None
         self.started = False
-        self._control_file = "/home/akm/.lttng/CONTROL"
+        home = Path.home()
+        self._start_control_file = home / '.lttng' / 'caret.start'
+        self._stop_control_file = home / '.lttng' / 'caret.stop'
 
     def subscription_callback(self, msg):
         if msg.status != Status.RECORD:
@@ -105,9 +108,9 @@ class CaretSessionNode(Node):
         self._start_pub_.publish(msg)
 
         try:
-            with open(self._control_file, 'w') as f:
+            with open(self._start_control_file, 'w') as f:
                 f.write(str(msg.recording_frequency))
-            #print(f'create file: {self._control_file}')
+            #print(f'create file: {self._start_control_file}')
         except IOError as e:
             print(f'file open: {e}')
         return caret_node_num
@@ -115,9 +118,11 @@ class CaretSessionNode(Node):
     def end(self):
         msg = End()
         self._end_pub_.publish(msg)
-        if os.path.exists(self._control_file):
+        
+        Path(self._stop_control_file).touch()
+        if os.path.exists(self._start_control_file):
             try:
-                os.remove(self._control_file)
+                os.remove(self._start_control_file)
             except OSError as e:
                 print(f'file remove: {e}')
 
