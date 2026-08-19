@@ -66,9 +66,8 @@ class CaretSessionNode(Node):
 
         if msg.caret_node_name in self._caret_node_names:
             self._caret_node_names.remove(msg.caret_node_name)
-
-        if self._progress:
-            self._progress.update()
+            if self._progress:
+                self._progress.update()
 
         if len(self._caret_node_names) == 0:
             self.stop_progress()
@@ -155,6 +154,10 @@ class RecordVerb(VerbExtension):
         parser.add_argument(
             '-c', '--record-clock', dest='record_clock', action='store_true',
             help='launch the node where the /clock topic is stored to use ROS time. ')
+        parser.add_argument(
+            '--init-retry-num', dest='init_retry_num', type=int,
+            default=10,
+            help='retry num to initialize LTTng')
 
     def main(self, *, args):
         if args.light_mode:
@@ -174,11 +177,13 @@ class RecordVerb(VerbExtension):
                     'ros2_caret:rcl_*init',
                     'ros2_caret:caret_init',
                     'ros2_caret:sim_time',
-                    'ros2:message_construct']
+                    'ros2:message_construct',
+                    'agnocast:agnocast*',
+                    'ros2_caret:agnocast*']
             if os.environ['ROS_DISTRO'][0] >= 'i':
                 events_ust.append('ros2:rcl_publish')
         else:
-            events_ust = ['ros*']
+            events_ust = ['ros*', 'agnocast*']
         context_names = names.DEFAULT_CONTEXT
         events_kernel = []
 
@@ -222,7 +227,16 @@ class RecordVerb(VerbExtension):
             raise ValueError('--subbuffer-size-kernel value must be power of two.')
         init_args['subbuffer_size_kernel'] = args.subbuffer_size_kernel
         init_args['immediate'] = args.immediate
-        init(**init_args)
+
+        for i in range(args.init_retry_num):
+            init_result = init(**init_args)
+            if init_result:
+                break
+            print(f'Failed to init LTTng. retry {i} / {args.init_retry_num}')
+            time.sleep(1)
+        else:
+            print('Failed to init LTTng.')
+            exit(0)
 
         def _run():
             recordable_node_num = node.start(args.verbose, args.recording_frequency)
@@ -231,7 +245,7 @@ class RecordVerb(VerbExtension):
             try:
                 input('press enter to stop...')
             except EOFError:
-                print('\nstd::input is not supported in this system. press ctrl-c to stop...')
+                print('\nstd::input is not supported in this system.\npress ctrl-c to stop...')
                 while True:
                     time.sleep(10)
 
